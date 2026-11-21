@@ -1,0 +1,26 @@
+name: "Windows Unsigned Build"
+
+# Builds an unsigned Windows x64 installer from any branch, for forks that
+# don't have the signing secrets. It runs on every push to the radbridge
+# branch, or from the Actions tab; download the installer from the run's
+# artifacts. tauri.unsigned.conf.json turns off code
+# signing and updater artifacts, which both need those secrets.
+
+on:
+  push:
+    branches: [radbridge]
+  workflow_dispatch:
+
+jobs:
+  build:
+    permissions:
+      contents: write
+    uses: ./.github/workflows/build.yml
+    with:
+      platform: "windows-latest"
+      target: "x86_64-pc-windows-msvc"
+      build-args: "--config src-tauri/tauri.unsigned.conf.json"
+      sign-binaries: false
+      asset-prefix: "handy-unsigned"
+      upload-artifacts: true
+    secrets: inherit
