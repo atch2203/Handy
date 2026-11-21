@@ -124,7 +124,7 @@ handy --start-hidden --no-tray
 
 ### Transcription hook
 
-Advanced users on macOS and Linux can rewrite text right before Handy pastes it. Put an executable at `hooks/transcription` in Handy's app data folder (`~/Library/Application Support/com.pais.handy/` on macOS, `~/.local/share/com.pais.handy/` on Linux). Handy writes the text to its stdin, after any LLM post-processing, and pastes its stdout. One trailing newline is removed, and empty output pastes nothing. If the hook fails or runs longer than 30 seconds, the original text is pasted.
+Advanced users can rewrite text right before Handy pastes it. Put an executable at `hooks/transcription` in Handy's app data folder (`~/Library/Application Support/com.pais.handy/` on macOS, `~/.local/share/com.pais.handy/` on Linux). On Windows the folder is `%APPDATA%\com.pais.handy\hooks\`, and Handy runs the first of `transcription.exe`, `transcription.cmd`, `transcription.bat` or `transcription.ps1` it finds there. `.cmd` and `.bat` files run with `cmd.exe /C`, and `.ps1` files with `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File` (Windows PowerShell 5.1; group policy can still block it). Handy writes the text to its stdin, after any LLM post-processing, and pastes its stdout. One trailing newline is removed, and empty output pastes nothing. If the hook fails or runs longer than 30 seconds, the original text is pasted.
 
 The hook doesn't get your shell's `PATH`: on macOS, Handy started from the Dock or Finder only sees `/usr/bin:/bin:/usr/sbin:/sbin`. Use absolute paths for anything else, such as `/opt/homebrew/bin/opencc`.
 
@@ -140,6 +140,8 @@ if [ "$app" = "Terminal" ]; then echo "# $(cat)"; else cat; fi
 EOF
 chmod +x transcription
 ```
+
+On Windows, [`scripts/hooks/transcription.ps1`](scripts/hooks/transcription.ps1) is an example that replaces a spoken token with a period. Copy it into the hooks folder and run it with `-SelfTest` to check it. A PowerShell hook adds PowerShell's start-up time to every dictation.
 
 ## Known Issues & Current Limitations
 
