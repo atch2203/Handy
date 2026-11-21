@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>RadBridge</title>
+    <link rel="stylesheet" href="ui.css" />
+    <style>
+      body {
+        width: 300px;
+        padding: 12px;
+      }
+      .target {
+        margin-top: 8px;
+        word-break: break-word;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>RadBridge</h1>
+    <div>
+      <span id="dot" class="dot err"></span><span id="connection">…</span>
+    </div>
+    <div class="target">
+      <strong>Target:</strong> <span id="target">…</span>
+    </div>
+    <div class="target"><strong>Field:</strong> <span id="field">…</span></div>
+    <div class="row">
+      <button id="pin" class="primary">Target this tab</button>
+      <button id="unpin" hidden>Unpin</button>
+      <button id="pick">Pick field</button>
+    </div>
+    <div id="message" class="message"></div>
+    <div class="row"><a href="#" id="options">Options</a></div>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

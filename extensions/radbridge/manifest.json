@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "RadBridge",
+  "version": "0.1.0",
+  "description": "Inserts text dictated in Handy into a web page field without moving keyboard focus.",
+  "minimum_chrome_version": "116",
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "permissions": ["storage", "scripting", "alarms", "webNavigation"],
+  "optional_host_permissions": ["https://*/*", "http://*/*"],
+  "action": {
+    "default_title": "RadBridge",
+    "default_popup": "popup.html"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  }
+}

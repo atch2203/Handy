@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RadBridge test page</title>
+    <link rel="stylesheet" href="harness.css" />
+  </head>
+  <body>
+    <h1>RadBridge test page</h1>
+    <p>
+      Stands in for RadOS. Each box is a different kind of field. "Model" lines
+      show what the page's own code thinks the field contains; after an insert
+      it must match the field.
+    </p>
+
+    <section>
+      <h2>1. Plain textarea</h2>
+      <textarea id="plain-textarea" rows="3"></textarea>
+    </section>
+
+    <section>
+      <h2>2. React-style controlled textarea</h2>
+      <p class="hint">
+        Imitates React's value tracking: setting <code>el.value</code> directly
+        and firing <code>input</code> is ignored and reverted. Only the native
+        setter works.
+      </p>
+      <textarea id="controlled-textarea" rows="3"></textarea>
+      <div class="model">Model: <span id="controlled-model"></span></div>
+    </section>
+
+    <section>
+      <h2>3. Plain contenteditable</h2>
+      <div id="plain-editable" class="editable" contenteditable="true"></div>
+    </section>
+
+    <section>
+      <h2>4. Model-based editor (ProseMirror/Slate-style)</h2>
+      <p class="hint">
+        Cancels every <code>beforeinput</code> and re-renders from its own
+        model, like rich-text editors do. Text that bypasses its events is
+        thrown away on the next render.
+      </p>
+      <div
+        id="model-editor"
+        class="editable"
+        contenteditable="true"
+        aria-label="Model editor"
+      ></div>
+      <div class="model">Model: <span id="model-editor-model"></span></div>
+    </section>
+
+    <section>
+      <h2>5. Editor in a same-origin iframe</h2>
+      <iframe id="editor-frame" src="frame.html" title="Framed editor"></iframe>
+    </section>
+
+    <section>
+      <h2>6. Editor in an about:srcdoc iframe</h2>
+      <iframe
+        id="srcdoc-frame"
+        title="srcdoc editor"
+        srcdoc="<!doctype html><body style='font:14px system-ui;margin:8px'><textarea id='srcdoc-textarea' rows='3' style='width:95%'></textarea></body>"
+      ></iframe>
+    </section>
+
+    <section>
+      <h2>7. Editor in an open shadow root</h2>
+      <report-editor id="shadow-host"></report-editor>
+    </section>
+
+    <section>
+      <h2>Not a target</h2>
+      <input id="not-text" type="checkbox" />
+      <label for="not-text">A checkbox (RadBridge must ignore it)</label>
+    </section>
+
+    <script src="harness.js"></script>
+  </body>
+</html>

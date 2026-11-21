@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>RadBridge options</title>
+    <link rel="stylesheet" href="ui.css" />
+    <style>
+      body {
+        max-width: 620px;
+        padding: 20px 16px 40px;
+        margin: 0 auto;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>RadBridge options</h1>
+    <p class="hint">
+      RadBridge inserts text you dictate in Handy into a field of a web page,
+      without moving keyboard focus. In Handy, set <em>Paste Method</em> to
+      <em>Send to Browser Extension</em>.
+    </p>
+    <div>
+      <span id="dot" class="dot err"></span><span id="connection">…</span>
+    </div>
+
+    <form id="form">
+      <h2>Connection to Handy</h2>
+      <label for="port">Port</label>
+      <input id="port" type="number" min="1024" max="65535" required />
+      <label for="token">Token</label>
+      <input
+        id="token"
+        type="text"
+        class="mono"
+        autocomplete="off"
+        spellcheck="false"
+      />
+      <p class="hint">
+        Copy the token from Handy: Settings → Advanced → Paste Method.
+      </p>
+
+      <h2>Pages</h2>
+      <label for="urlPattern">URL pattern</label>
+      <input
+        id="urlPattern"
+        type="text"
+        class="mono"
+        placeholder="https://rados.example.org/*"
+        spellcheck="false"
+      />
+      <p class="hint">
+        A
+        <a
+          href="https://developer.chrome.com/docs/extensions/develop/concepts/match-patterns"
+          target="_blank"
+          rel="noreferrer"
+          >Chrome match pattern</a
+        >. Saving asks Chrome for access to these pages only. For the test page
+        use <code>http://localhost/*</code>.
+      </p>
+      <p class="hint">
+        Chrome's Memory Saver unloads background tabs, and RadBridge can't
+        insert into an unloaded tab. Add the site to
+        <em>Always keep these sites active</em> in
+        <code>chrome://settings/performance</code> (Edge:
+        <code>edge://settings/system</code>,
+        <em>Never put these sites to sleep</em>).
+      </p>
+
+      <h2>Field</h2>
+      <fieldset>
+        <legend>Which field</legend>
+        <label class="choice"
+          ><input type="radio" name="fieldMode" value="focused" /> Last focused
+          field in the page</label
+        >
+        <label class="choice"
+          ><input type="radio" name="fieldMode" value="selector" /> CSS
+          selector</label
+        >
+        <input
+          id="selector"
+          type="text"
+          class="mono"
+          placeholder="#report-editor"
+          spellcheck="false"
+        />
+        <p class="hint">
+          Use <code>&gt;&gt;&gt;</code> to step into an iframe or a shadow root,
+          e.g. <code>iframe#editor &gt;&gt;&gt; .ql-editor</code>. Or use
+          <em>Pick field</em> in the toolbar popup.
+        </p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Where to insert</legend>
+        <label class="choice"
+          ><input type="radio" name="position" value="end" /> Append to the
+          end</label
+        >
+        <label class="choice"
+          ><input type="radio" name="position" value="caret" /> At the caret /
+          selection</label
+        >
+      </fieldset>
+
+      <label for="separator"
+        >Before the text, when the field doesn't end in whitespace</label
+      >
+      <select id="separator">
+        <option value="space">A space</option>
+        <option value="newline">A new line</option>
+        <option value="none">Nothing</option>
+      </select>
+
+      <label for="strategy">Insert method</label>
+      <select id="strategy">
+        <option value="auto">Automatic (recommended)</option>
+        <option value="value">Set the value (textarea / input)</option>
+        <option value="execCommand">
+          Type it in (contenteditable editors)
+        </option>
+        <option value="paste">Simulated paste</option>
+        <option value="beforeinput">beforeinput event</option>
+      </select>
+
+      <label class="choice"
+        ><input id="flash" type="checkbox" /> Briefly outline the field after
+        inserting</label
+      >
+
+      <div class="row">
+        <button type="submit" class="primary">Save</button>
+        <button type="button" id="test">Test insert</button>
+      </div>
+      <div id="message" class="message"></div>
+    </form>
+    <script type="module" src="options.js"></script>
+  </body>
+</html>
