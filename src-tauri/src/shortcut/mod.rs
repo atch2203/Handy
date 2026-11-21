@@ -1002,6 +1002,7 @@ pub fn change_paste_method_setting(app: AppHandle, method: String) -> Result<(),
         "shift_insert" => PasteMethod::ShiftInsert,
         "ctrl_shift_v" => PasteMethod::CtrlShiftV,
         "external_script" => PasteMethod::ExternalScript,
+        "send_to_extension" => PasteMethod::SendToExtension,
         other => {
             warn!("Invalid paste method '{}', defaulting to ctrl_v", other);
             PasteMethod::CtrlV
@@ -1009,7 +1010,49 @@ pub fn change_paste_method_setting(app: AppHandle, method: String) -> Result<(),
     };
     settings.paste_method = parsed;
     settings::write_settings(&app, settings);
+    crate::extension_bridge::sync_with_settings(&app);
     Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_extension_bridge_port_setting(app: AppHandle, port: u16) -> Result<(), String> {
+    if port < 1024 {
+        return Err("Choose a port from 1024 to 65535".into());
+    }
+    let mut settings = settings::get_settings(&app);
+    settings.extension_bridge_port = port;
+    settings::write_settings(&app, settings);
+    crate::extension_bridge::sync_with_settings(&app);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_extension_bridge_timeout_ms_setting(app: AppHandle, ms: u64) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.extension_bridge_timeout_ms = ms;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+/// Replaces the extension token with a new random one, which disconnects the
+/// extension until it's given the new token. Returns the new token.
+#[tauri::command]
+#[specta::specta]
+pub fn regenerate_extension_bridge_token(app: AppHandle) -> Result<String, String> {
+    let mut settings = settings::get_settings(&app);
+    let token = crate::extension_bridge::generate_token();
+    settings.extension_bridge_token = settings::SecretString(token.clone());
+    settings::write_settings(&app, settings);
+    crate::extension_bridge::sync_with_settings(&app);
+    Ok(token)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn get_extension_bridge_status() -> crate::extension_bridge::ExtensionBridgeStatus {
+    crate::extension_bridge::BRIDGE.status()
 }
 
 #[tauri::command]

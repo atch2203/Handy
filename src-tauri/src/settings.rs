@@ -168,6 +168,9 @@ pub enum PasteMethod {
     ShiftInsert,
     CtrlShiftV,
     ExternalScript,
+    /// Sends the text to the RadBridge browser extension over a localhost
+    /// WebSocket (`extension_bridge`) instead of pressing keys.
+    SendToExtension,
 }
 
 /// How the transcribe shortcut's key events drive a recording.
@@ -376,6 +379,28 @@ impl fmt::Debug for SecretMap {
     }
 }
 
+/// A string kept out of `Debug` output, such as the extension bridge token.
+#[derive(Clone, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(transparent)]
+pub struct SecretString(pub String);
+
+impl fmt::Debug for SecretString {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(if self.0.is_empty() {
+            "\"\""
+        } else {
+            "[REDACTED]"
+        })
+    }
+}
+
+impl std::ops::Deref for SecretString {
+    type Target = str;
+    fn deref(&self) -> &str {
+        &self.0
+    }
+}
+
 impl std::ops::Deref for SecretMap {
     type Target = HashMap<String, String>;
     fn deref(&self) -> &Self::Target {
@@ -531,6 +556,16 @@ pub struct AppSettings {
     pub typing_tool: TypingTool,
     #[serde(default)]
     pub external_script_path: Option<String>,
+    /// Localhost port of the extension bridge (`PasteMethod::SendToExtension`).
+    #[serde(default = "default_extension_bridge_port")]
+    pub extension_bridge_port: u16,
+    /// Secret the browser extension must send to connect. Generated on first
+    /// load (`ensure_extension_bridge_token`).
+    #[serde(default)]
+    pub extension_bridge_token: SecretString,
+    /// How long to wait for the extension to confirm an insert.
+    #[serde(default = "default_extension_bridge_timeout_ms")]
+    pub extension_bridge_timeout_ms: u64,
     #[serde(default = "default_filler_word_removal_enabled")]
     pub filler_word_removal_enabled: bool,
     #[serde(default)]
@@ -684,6 +719,14 @@ fn default_paste_delay_after_ms() -> u64 {
     return 500;
     #[cfg(not(target_os = "linux"))]
     return 60;
+}
+
+fn default_extension_bridge_port() -> u16 {
+    47813
+}
+
+fn default_extension_bridge_timeout_ms() -> u64 {
+    2000
 }
 
 fn default_auto_submit() -> bool {
@@ -887,6 +930,15 @@ fn default_typing_tool() -> TypingTool {
     TypingTool::Auto
 }
 
+/// Gives a store saved without an extension bridge token a random one.
+fn ensure_extension_bridge_token(settings: &mut AppSettings) -> bool {
+    if !settings.extension_bridge_token.is_empty() {
+        return false;
+    }
+    settings.extension_bridge_token = SecretString(crate::extension_bridge::generate_token());
+    true
+}
+
 fn ensure_post_process_defaults(settings: &mut AppSettings) -> bool {
     let mut changed = false;
     for provider in default_post_process_providers() {
@@ -1064,6 +1116,10 @@ pub fn get_default_settings() -> AppSettings {
         reliable_paste: false,
         typing_tool: default_typing_tool(),
         external_script_path: None,
+        extension_bridge_port: default_extension_bridge_port(),
+        // Filled in on first load by `ensure_extension_bridge_token`.
+        extension_bridge_token: SecretString::default(),
+        extension_bridge_timeout_ms: default_extension_bridge_timeout_ms(),
         filler_word_removal_enabled: default_filler_word_removal_enabled(),
         custom_filler_words: None,
         chinese_script: default_chinese_script(),
@@ -1168,7 +1224,9 @@ pub fn get_settings(app: &AppHandle) -> AppSettings {
         default_settings
     };
 
-    if ensure_post_process_defaults(&mut settings) {
+    let mut changed = ensure_post_process_defaults(&mut settings);
+    changed |= ensure_extension_bridge_token(&mut settings);
+    if changed {
         store.set("settings", serde_json::to_value(&settings).unwrap());
     }
 
@@ -2132,6 +2190,46 @@ mod tests {
         assert!(!debug_output.contains("sk-proj-secret-key-12345"));
         assert!(!debug_output.contains("sk-ant-secret-key-67890"));
         assert!(debug_output.contains("[REDACTED]"));
+    }
+
+    #[test]
+    fn debug_output_redacts_extension_bridge_token() {
+        let mut settings = get_default_settings();
+        assert!(ensure_extension_bridge_token(&mut settings));
+        let debug_output = format!("{:?}", settings);
+        assert!(!debug_output.contains(&*settings.extension_bridge_token));
+    }
+
+    #[test]
+    fn extension_bridge_fields_default_when_missing_from_old_store() {
+        // A store written before the extension bridge existed.
+        let mut stored = default_settings_json();
+        let map = stored.as_object_mut().unwrap();
+        map.remove("extension_bridge_port");
+        map.remove("extension_bridge_token");
+        map.remove("extension_bridge_timeout_ms");
+        map.insert("paste_method".into(), serde_json::json!("ctrl_v"));
+
+        let mut settings: AppSettings = serde_json::from_value(stored).unwrap();
+        assert_eq!(settings.extension_bridge_port, 47813);
+        assert_eq!(settings.extension_bridge_timeout_ms, 2000);
+        assert!(settings.extension_bridge_token.is_empty());
+
+        // First load fills in a token, and a second load keeps it.
+        assert!(ensure_extension_bridge_token(&mut settings));
+        let token = settings.extension_bridge_token.clone();
+        assert_eq!(token.len(), 64);
+        assert!(!ensure_extension_bridge_token(&mut settings));
+        assert_eq!(settings.extension_bridge_token, token);
+
+        // And it all survives a save and reload.
+        settings.paste_method = PasteMethod::SendToExtension;
+        let saved = serde_json::to_value(&settings).unwrap();
+        assert_eq!(saved["paste_method"], "send_to_extension");
+        assert_eq!(saved["extension_bridge_token"], serde_json::json!(&*token));
+        let reloaded: AppSettings = serde_json::from_value(saved).unwrap();
+        assert_eq!(reloaded.paste_method, PasteMethod::SendToExtension);
+        assert_eq!(reloaded.extension_bridge_token, token);
     }
 
     #[test]

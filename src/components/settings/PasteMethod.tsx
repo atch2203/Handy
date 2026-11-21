@@ -6,6 +6,7 @@ import { Input } from "../ui/Input";
 import { useSettings } from "../../hooks/useSettings";
 import { useOsType } from "../../hooks/useOsType";
 import type { PasteMethod } from "@/bindings";
+import { ExtensionBridgeSettings } from "./ExtensionBridgeSettings";
 
 interface PasteMethodProps {
   descriptionMode?: "inline" | "tooltip";
@@ -74,6 +75,11 @@ export const PasteMethodSetting: React.FC<PasteMethodProps> = React.memo(
         });
       }
 
+      options.push({
+        value: "send_to_extension",
+        label: t("settings.advanced.pasteMethod.options.sendToExtension"),
+      });
+
       return options;
     };
 
@@ -110,6 +116,9 @@ export const PasteMethodSetting: React.FC<PasteMethodProps> = React.memo(
               )}
               disabled={isUpdating("external_script_path")}
             />
+          )}
+          {selectedMethod === "send_to_extension" && (
+            <ExtensionBridgeSettings />
           )}
         </div>
       </SettingContainer>

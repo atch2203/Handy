@@ -875,15 +875,24 @@ pub(crate) fn send_return_key(enigo: &mut Enigo, key_type: AutoSubmitKey) -> Res
 }
 
 fn should_send_auto_submit(auto_submit: bool, paste_method: PasteMethod) -> bool {
-    auto_submit && paste_method != PasteMethod::None
+    // Never press Enter after the extension inserts into a web form: it could
+    // submit a report.
+    auto_submit
+        && !matches!(
+            paste_method,
+            PasteMethod::None | PasteMethod::SendToExtension
+        )
 }
 
 /// What [`paste`] did with the text.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum PasteOutcome {
     Pasted,
     /// The focused window takes no input from Handy, so nothing arrived.
     Blocked,
+    /// The browser extension didn't take the text, so it was put on the
+    /// clipboard instead. Holds why the extension failed.
+    CopiedToClipboard(String),
 }
 
 /// Whether `paste_method` works by sending keystrokes to the focused window.
@@ -893,7 +902,7 @@ fn sends_keys(paste_method: PasteMethod) -> bool {
         | PasteMethod::CtrlV
         | PasteMethod::CtrlShiftV
         | PasteMethod::ShiftInsert => true,
-        PasteMethod::None | PasteMethod::ExternalScript => false,
+        PasteMethod::None | PasteMethod::ExternalScript | PasteMethod::SendToExtension => false,
     }
 }
 
@@ -910,7 +919,7 @@ pub fn paste(text: String, app_handle: AppHandle) -> Result<PasteOutcome, String
         sends_keys(settings.paste_method) && crate::utils::foreground_window_is_elevated();
     let result = paste_as_configured(text, app_handle, settings);
     if !blocked {
-        return result.map(|()| PasteOutcome::Pasted);
+        return result;
     }
     if let Err(e) = result {
         log::warn!("Paste into an elevated window failed: {e}");
@@ -922,7 +931,7 @@ fn paste_as_configured(
     text: String,
     app_handle: AppHandle,
     settings: AppSettings,
-) -> Result<(), String> {
+) -> Result<PasteOutcome, String> {
     let paste_method = settings.paste_method;
     let paste_delay_ms = settings.paste_delay_ms;
     let paste_delay_after_ms = settings.paste_delay_after_ms;
@@ -979,7 +988,7 @@ fn paste_as_configured(
                     )
                 });
                 match reliable_result {
-                    Ok(()) => return Ok(()),
+                    Ok(()) => return Ok(PasteOutcome::Pasted),
                     Err(e) => {
                         log::warn!("Reliable paste unavailable ({e}); falling back to legacy paste")
                     }
@@ -1001,6 +1010,20 @@ fn paste_as_configured(
                 .ok_or("External script path is not configured")?;
             paste_via_external_script(&text, script_path)?;
         }
+        PasteMethod::SendToExtension => {
+            // Leaves the clipboard alone, and never presses Enter, unless the
+            // extension fails: then the text goes on the clipboard so the
+            // dictation isn't lost.
+            return match crate::extension_bridge::send_text(&app_handle, &text) {
+                Ok(()) => Ok(PasteOutcome::Pasted),
+                Err(reason) => {
+                    log::warn!("Browser extension didn't insert the text: {reason}");
+                    write_text_to_clipboard(&app_handle, &text)
+                        .map_err(|e| format!("{reason}; copying to the clipboard failed: {e}"))?;
+                    Ok(PasteOutcome::CopiedToClipboard(reason))
+                }
+            };
+        }
     }
 
     if should_send_auto_submit(settings.auto_submit, paste_method) {
@@ -1018,7 +1041,7 @@ fn paste_as_configured(
         write_text_to_clipboard(&app_handle, &text)?;
     }
 
-    Ok(())
+    Ok(PasteOutcome::Pasted)
 }
 
 #[cfg(test)]
@@ -1130,6 +1153,12 @@ e.g. 28:1 28:0 means pressing on the Enter button on a standard US keyboard.
     #[test]
     fn auto_submit_skips_none_paste_method() {
         assert!(!should_send_auto_submit(true, PasteMethod::None));
+    }
+
+    #[test]
+    fn send_to_extension_never_submits_or_sends_keys() {
+        assert!(!should_send_auto_submit(true, PasteMethod::SendToExtension));
+        assert!(!sends_keys(PasteMethod::SendToExtension));
     }
 
     #[test]

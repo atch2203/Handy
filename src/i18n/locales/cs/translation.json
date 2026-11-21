@@ -534,9 +534,24 @@
           "clipboardShiftInsert": "Schránka (Shift+Insert)",
           "direct": "Přímé",
           "none": "Žádné",
-          "externalScript": "Externí skript"
+          "externalScript": "Externí skript",
+          "sendToExtension": "Send to Browser Extension"
         },
         "externalScriptPlaceholder": "/cesta/k/vasemu/skriptu.sh"
+      },
+      "extensionBridge": {
+        "port": "Port",
+        "token": "Token",
+        "copy": "Copy",
+        "regenerate": "Regenerate",
+        "regenerateHint": "Make a new token. The extension disconnects until you paste the new token into it.",
+        "copyFailed": "Couldn't Copy the Token",
+        "regenerateFailed": "Couldn't Make a New Token",
+        "status": {
+          "connected": "Extension connected",
+          "waiting": "Waiting for extension…",
+          "notListening": "Not listening on port {{port}}. Another app may be using it; choose another port."
+        }
       },
       "typingTool": {
         "title": "Nástroj pro psaní",
@@ -952,6 +967,8 @@
     "pasteFailed": "Text nebylo možné vložit do aktivní aplikace.",
     "pasteBlockedElevatedTitle": "Nelze vložit do aplikace správce",
     "pasteBlockedElevated": "Aktivní aplikace běží jako správce, takže do ní Handy nemůže vkládat. Přepis můžete zkopírovat z Historie.",
+    "extensionSendFailedTitle": "Copied to Clipboard Instead",
+    "extensionSendFailed": "The browser extension didn't insert the text, so Handy put it on the clipboard. You can also copy it from History.",
     "postProcessFailedTitle": "Vloženo bez následného zpracování",
     "postProcessFailed": "Následné zpracování se nedokončilo, takže byl přepis vložen beze změn.",
     "filePostProcessFailedTitle": "Přepsáno bez následného zpracování",

@@ -42,6 +42,8 @@ pub enum NoticeCode {
     TranscriptionFailed,
     PasteFailed,
     PasteBlockedElevated,
+    /// The browser extension didn't insert the text; it went on the clipboard.
+    ExtensionSendFailed,
     NoMicrophone,
     MicrophoneSilent,
     MicPermissionDenied,
@@ -59,6 +61,7 @@ impl NoticeCode {
             Self::TranscriptionFailed
             | Self::PasteFailed
             | Self::PasteBlockedElevated
+            | Self::ExtensionSendFailed
             | Self::NoMicrophone
             | Self::MicrophoneSilent
             | Self::MicPermissionDenied
@@ -76,6 +79,7 @@ impl NoticeCode {
             Self::TranscriptionFailed => &strings.transcription_failed_title,
             Self::PasteFailed => &strings.paste_failed_title,
             Self::PasteBlockedElevated => &strings.paste_blocked_elevated_title,
+            Self::ExtensionSendFailed => &strings.extension_send_failed_title,
             Self::NoMicrophone => &strings.no_input_device_title,
             Self::MicrophoneSilent => &strings.microphone_silent_title,
             Self::MicPermissionDenied => &strings.mic_permission_denied_title,

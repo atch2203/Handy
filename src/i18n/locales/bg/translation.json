@@ -534,9 +534,24 @@
           "clipboardShiftInsert": "Клипборд (Shift+Insert)",
           "direct": "Директно",
           "none": "Няма",
-          "externalScript": "Външен скрипт"
+          "externalScript": "Външен скрипт",
+          "sendToExtension": "Send to Browser Extension"
         },
         "externalScriptPlaceholder": "/път/към/вашия/script.sh"
+      },
+      "extensionBridge": {
+        "port": "Port",
+        "token": "Token",
+        "copy": "Copy",
+        "regenerate": "Regenerate",
+        "regenerateHint": "Make a new token. The extension disconnects until you paste the new token into it.",
+        "copyFailed": "Couldn't Copy the Token",
+        "regenerateFailed": "Couldn't Make a New Token",
+        "status": {
+          "connected": "Extension connected",
+          "waiting": "Waiting for extension…",
+          "notListening": "Not listening on port {{port}}. Another app may be using it; choose another port."
+        }
       },
       "typingTool": {
         "title": "Инструмент за писане",
@@ -952,6 +967,8 @@
     "pasteFailed": "Текстът не можа да бъде поставен в активното приложение.",
     "pasteBlockedElevatedTitle": "Поставянето е блокирано",
     "pasteBlockedElevated": "Активното приложение работи като администратор, затова Handy не може да поставя в него. Можете да копирате транскрипцията от История.",
+    "extensionSendFailedTitle": "Copied to Clipboard Instead",
+    "extensionSendFailed": "The browser extension didn't insert the text, so Handy put it on the clipboard. You can also copy it from History.",
     "postProcessFailedTitle": "Поставено без постобработка",
     "postProcessFailed": "Постобработката не завърши, затова транскрипцията беше поставена без промени.",
     "filePostProcessFailedTitle": "Транскрибирано без постобработка",

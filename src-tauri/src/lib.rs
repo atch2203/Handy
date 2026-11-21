@@ -10,6 +10,7 @@ pub mod cli;
 mod clipboard;
 mod commands;
 pub mod engine_supervisor;
+mod extension_bridge;
 mod helpers;
 mod input;
 mod language_detection;
@@ -227,6 +228,9 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     app_handle.manage(history_manager.clone());
     app_handle.manage(tray::TrayState::new());
     app_handle.manage(TranscriptionJobManager::new(app_handle));
+
+    // Listens for the browser extension if that's the paste method.
+    extension_bridge::sync_with_settings(app_handle);
 
     // Note: Shortcuts are NOT initialized here.
     // The frontend is responsible for calling the `initialize_shortcuts` command
@@ -712,6 +716,10 @@ pub fn run(cli_args: CliArgs) {
             shortcut::change_paste_delay_after_ms_setting,
             shortcut::change_reliable_paste_setting,
             shortcut::change_paste_method_setting,
+            shortcut::change_extension_bridge_port_setting,
+            shortcut::change_extension_bridge_timeout_ms_setting,
+            shortcut::regenerate_extension_bridge_token,
+            shortcut::get_extension_bridge_status,
             shortcut::get_available_typing_tools,
             shortcut::change_typing_tool_setting,
             shortcut::change_external_script_path_setting,

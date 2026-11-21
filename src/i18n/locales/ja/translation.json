@@ -534,9 +534,24 @@
           "clipboardShiftInsert": "クリップボード (Shift+Insert)",
           "direct": "直接",
           "none": "なし",
-          "externalScript": "外部スクリプト"
+          "externalScript": "外部スクリプト",
+          "sendToExtension": "Send to Browser Extension"
         },
         "externalScriptPlaceholder": "/path/to/your/script.sh"
+      },
+      "extensionBridge": {
+        "port": "Port",
+        "token": "Token",
+        "copy": "Copy",
+        "regenerate": "Regenerate",
+        "regenerateHint": "Make a new token. The extension disconnects until you paste the new token into it.",
+        "copyFailed": "Couldn't Copy the Token",
+        "regenerateFailed": "Couldn't Make a New Token",
+        "status": {
+          "connected": "Extension connected",
+          "waiting": "Waiting for extension…",
+          "notListening": "Not listening on port {{port}}. Another app may be using it; choose another port."
+        }
       },
       "typingTool": {
         "title": "タイピングツール",
@@ -952,6 +967,8 @@
     "pasteFailed": "アクティブなアプリにテキストを貼り付けられませんでした。",
     "pasteBlockedElevatedTitle": "管理者アプリに貼り付けできません",
     "pasteBlockedElevated": "アクティブなアプリが管理者として実行されているため、Handy は貼り付けできません。文字起こしは履歴からコピーできます。",
+    "extensionSendFailedTitle": "Copied to Clipboard Instead",
+    "extensionSendFailed": "The browser extension didn't insert the text, so Handy put it on the clipboard. You can also copy it from History.",
     "postProcessFailedTitle": "後処理なしで貼り付けました",
     "postProcessFailed": "後処理が完了しなかったため、文字起こしをそのまま貼り付けました。",
     "filePostProcessFailedTitle": "後処理なしで文字起こししました",

@@ -534,9 +534,24 @@
           "clipboardShiftInsert": "Urklipp (Shift+Insert)",
           "direct": "Direkt",
           "none": "Ingen",
-          "externalScript": "Externt skript"
+          "externalScript": "Externt skript",
+          "sendToExtension": "Send to Browser Extension"
         },
         "externalScriptPlaceholder": "/sökväg/till/ditt/skript.sh"
+      },
+      "extensionBridge": {
+        "port": "Port",
+        "token": "Token",
+        "copy": "Copy",
+        "regenerate": "Regenerate",
+        "regenerateHint": "Make a new token. The extension disconnects until you paste the new token into it.",
+        "copyFailed": "Couldn't Copy the Token",
+        "regenerateFailed": "Couldn't Make a New Token",
+        "status": {
+          "connected": "Extension connected",
+          "waiting": "Waiting for extension…",
+          "notListening": "Not listening on port {{port}}. Another app may be using it; choose another port."
+        }
       },
       "typingTool": {
         "title": "Skrivverktyg",
@@ -952,6 +967,8 @@
     "pasteFailed": "Texten kunde inte klistras in i det aktiva programmet.",
     "pasteBlockedElevatedTitle": "Kan inte klistra in i admin-appar",
     "pasteBlockedElevated": "Det aktiva programmet körs som administratör, så Handy kan inte klistra in i det. Du kan kopiera transkriptionen från Historik.",
+    "extensionSendFailedTitle": "Copied to Clipboard Instead",
+    "extensionSendFailed": "The browser extension didn't insert the text, so Handy put it on the clipboard. You can also copy it from History.",
     "postProcessFailedTitle": "Inklistrat utan efterbearbetning",
     "postProcessFailed": "Efterbearbetningen slutfördes inte, så transkriptionen klistrades in som den är.",
     "filePostProcessFailedTitle": "Transkriberat utan efterbearbetning",

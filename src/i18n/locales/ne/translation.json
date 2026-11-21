@@ -534,9 +534,24 @@
           "clipboardShiftInsert": "क्लिपबोर्ड (Shift+Insert)",
           "direct": "डाइरेक्ट",
           "none": "कुनै होइन",
-          "externalScript": "बाह्य स्क्रिप्ट"
+          "externalScript": "बाह्य स्क्रिप्ट",
+          "sendToExtension": "Send to Browser Extension"
         },
         "externalScriptPlaceholder": "/path/to/your/script.sh"
+      },
+      "extensionBridge": {
+        "port": "Port",
+        "token": "Token",
+        "copy": "Copy",
+        "regenerate": "Regenerate",
+        "regenerateHint": "Make a new token. The extension disconnects until you paste the new token into it.",
+        "copyFailed": "Couldn't Copy the Token",
+        "regenerateFailed": "Couldn't Make a New Token",
+        "status": {
+          "connected": "Extension connected",
+          "waiting": "Waiting for extension…",
+          "notListening": "Not listening on port {{port}}. Another app may be using it; choose another port."
+        }
       },
       "typingTool": {
         "title": "टाइपिङ उपकरण",
@@ -952,6 +967,8 @@
     "pasteFailed": "सक्रिय एपमा टेक्स्ट पेस्ट गर्न सकिएन।",
     "pasteBlockedElevatedTitle": "एडमिन एपमा पेस्ट गर्न सकिँदैन",
     "pasteBlockedElevated": "सक्रिय एप प्रशासकको रूपमा चलिरहेको छ, त्यसैले Handy ले त्यसमा पेस्ट गर्न सक्दैन। तपाईं हिस्ट्रीबाट ट्रान्सक्रिप्ट कपी गर्न सक्नुहुन्छ।",
+    "extensionSendFailedTitle": "Copied to Clipboard Instead",
+    "extensionSendFailed": "The browser extension didn't insert the text, so Handy put it on the clipboard. You can also copy it from History.",
     "postProcessFailedTitle": "पोस्ट प्रोसेस बिना पेस्ट गरियो",
     "postProcessFailed": "पोस्ट प्रोसेस पूरा भएन, त्यसैले ट्रान्सक्रिप्ट जस्तो थियो त्यस्तै पेस्ट गरियो।",
     "filePostProcessFailedTitle": "पोस्ट प्रोसेस बिना ट्रान्सक्राइब गरियो",

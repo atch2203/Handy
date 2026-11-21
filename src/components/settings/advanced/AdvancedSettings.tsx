@@ -31,6 +31,9 @@ export const AdvancedSettings: React.FC = () => {
   const { t } = useTranslation();
   const { getSetting } = useSettings();
   const experimentalEnabled = getSetting("experimental_enabled") || false;
+  // The extension inserts into a web page: it never touches the clipboard
+  // or presses Enter, so those settings don't apply.
+  const sendsToExtension = getSetting("paste_method") === "send_to_extension";
 
   return (
     <div className="max-w-3xl w-full mx-auto space-y-6">
@@ -46,8 +49,15 @@ export const AdvancedSettings: React.FC = () => {
       <SettingsGroup title={t("settings.advanced.groups.output")}>
         <PasteMethodSetting descriptionMode="tooltip" grouped={true} />
         <TypingToolSetting descriptionMode="tooltip" grouped={true} />
-        <ClipboardHandlingSetting descriptionMode="tooltip" grouped={true} />
-        <AutoSubmit descriptionMode="tooltip" grouped={true} />
+        {!sendsToExtension && (
+          <>
+            <ClipboardHandlingSetting
+              descriptionMode="tooltip"
+              grouped={true}
+            />
+            <AutoSubmit descriptionMode="tooltip" grouped={true} />
+          </>
+        )}
       </SettingsGroup>
 
       <SettingsGroup title={t("settings.advanced.groups.transcription")}>

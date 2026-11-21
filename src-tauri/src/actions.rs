@@ -935,6 +935,18 @@ impl ShortcutAction for TranscribeAction {
                                                     });
                                                     (TranscriptionOutcome::Typed, notice)
                                                 }
+                                                Ok(utils::PasteOutcome::CopiedToClipboard(
+                                                    reason,
+                                                )) => (
+                                                    TranscriptionOutcome::Failed,
+                                                    Some(
+                                                        Notice::new(
+                                                            NoticeCode::ExtensionSendFailed,
+                                                            NoticeSource::Dictation,
+                                                        )
+                                                        .with_detail(reason),
+                                                    ),
+                                                ),
                                                 Ok(utils::PasteOutcome::Blocked) => (
                                                     TranscriptionOutcome::Failed,
                                                     Some(Notice::new(

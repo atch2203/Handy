@@ -51,7 +51,13 @@ anyhow = "1.0.95"
 hound = "3.5.1"
 log = "0.4.25"
 env_filter = "0.1.0"
-tokio = { version = "1.43.0", features = ["process"] }
+tokio = { version = "1.43.0", features = ["macros", "net", "process", "rt", "sync", "time"] }
+# Localhost WebSocket server the RadBridge browser extension connects to
+# (`extension_bridge`). Server handshake only, no TLS: it binds 127.0.0.1.
+tokio-tungstenite = { version = "0.30.0", default-features = false, features = ["handshake"] }
+uuid = { version = "1.29.3", features = ["v4"] }
+# The extension bridge's shared token.
+getrandom = "0.3"
 earshot = "1.2.2"
 enigo = "0.6.1"
 # Feedback sounds. No `recording`: microphone capture is handy-recorder's.

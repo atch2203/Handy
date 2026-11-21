@@ -534,9 +534,24 @@
           "clipboardShiftInsert": "คลิปบอร์ด (Shift+Insert)",
           "direct": "พิมพ์โดยตรง",
           "none": "ไม่วาง",
-          "externalScript": "สคริปต์ภายนอก"
+          "externalScript": "สคริปต์ภายนอก",
+          "sendToExtension": "Send to Browser Extension"
         },
         "externalScriptPlaceholder": "/path/to/your/script.sh"
+      },
+      "extensionBridge": {
+        "port": "Port",
+        "token": "Token",
+        "copy": "Copy",
+        "regenerate": "Regenerate",
+        "regenerateHint": "Make a new token. The extension disconnects until you paste the new token into it.",
+        "copyFailed": "Couldn't Copy the Token",
+        "regenerateFailed": "Couldn't Make a New Token",
+        "status": {
+          "connected": "Extension connected",
+          "waiting": "Waiting for extension…",
+          "notListening": "Not listening on port {{port}}. Another app may be using it; choose another port."
+        }
       },
       "typingTool": {
         "title": "เครื่องมือช่วยพิมพ์",
@@ -952,6 +967,8 @@
     "pasteFailed": "ไม่สามารถวางข้อความลงในแอปที่กำลังใช้งานอยู่ได้",
     "pasteBlockedElevatedTitle": "ไม่สามารถวางลงในแอปที่ใช้สิทธิ์ผู้ดูแลระบบ",
     "pasteBlockedElevated": "แอปที่กำลังใช้งานทำงานด้วยสิทธิ์ผู้ดูแลระบบ Handy จึงไม่สามารถวางข้อความลงไปได้ คุณสามารถคัดลอกข้อความที่ถอดได้จากประวัติ",
+    "extensionSendFailedTitle": "Copied to Clipboard Instead",
+    "extensionSendFailed": "The browser extension didn't insert the text, so Handy put it on the clipboard. You can also copy it from History.",
     "postProcessFailedTitle": "วางโดยไม่มีการปรับแต่งข้อความ",
     "postProcessFailed": "การปรับแต่งข้อความไม่เสร็จสมบูรณ์ จึงวางข้อความที่ถอดได้ตามเดิม",
     "filePostProcessFailedTitle": "ถอดเสียงโดยไม่มีการปรับแต่งข้อความ",
