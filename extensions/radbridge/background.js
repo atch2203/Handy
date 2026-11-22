@@ -27,13 +27,30 @@ let reconnectDelay = RECONNECT_MIN_MS;
 let lastError = "";
 
 // ---------------------------------------------------------------------------
-// Target tab: a pinned tab, else the matching tab focused most recently.
-// Kept in session storage so it survives the worker being suspended.
+// Where dictation goes, in order:
+//
+// 1. A field bound with the right-click menu. If its window closed or
+//    reloaded, either fail until a field is bound again, or look for the
+//    same field (its saved selector) in every matching window, as set in
+//    `whenBindingLost`.
+// 2. Otherwise the field from `fieldMode`, in the tab pinned with "Target
+//    this tab", or else in any matching tab.
+//
+// Window focus doesn't decide it: a site can open several windows, such as a
+// report window and a viewer popup, and only some of them have the field.
+// Tabs without the field are skipped. The binding and the pin are kept in
+// session storage so they survive the worker being suspended.
 
-async function getTabState() {
-  const { pinnedTabId = null, lastFocusedTabId = null } =
-    await chrome.storage.session.get(["pinnedTabId", "lastFocusedTabId"]);
-  return { pinnedTabId, lastFocusedTabId };
+const BIND_MENU = "radbridge-bind";
+const UNBIND_MENU = "radbridge-unbind";
+
+const REBIND_HINT =
+  'Right-click the report field and choose "Bind RadBridge to this field".';
+
+async function getSession() {
+  const { pinnedTabId = null, binding = null } =
+    await chrome.storage.session.get(["pinnedTabId", "binding"]);
+  return { pinnedTabId, binding };
 }
 
 async function matchingTabs() {
@@ -50,51 +67,18 @@ async function tabMatches(tabId) {
   return (await matchingTabs()).some((tab) => tab.id === tabId);
 }
 
-// The tab dictation goes to, or null.
-async function resolveTargetTab() {
-  const tabs = await matchingTabs();
-  if (tabs.length === 0) return null;
-  const { pinnedTabId, lastFocusedTabId } = await getTabState();
-  const byId = (id) => tabs.find((tab) => tab.id === id);
-  return (
-    byId(pinnedTabId) ??
-    byId(lastFocusedTabId) ??
-    // Most recently used first (`lastAccessed` is Chrome 121+).
-    [...tabs].sort((a, b) => (b.lastAccessed ?? 0) - (a.lastAccessed ?? 0))[0]
-  );
-}
-
-async function noteFocusedTab(tabId) {
-  if (tabId == null || tabId < 0) return;
-  if (await tabMatches(tabId)) {
-    await chrome.storage.session.set({ lastFocusedTabId: tabId });
-    updateBadge();
-  }
-}
-
-chrome.tabs.onActivated.addListener(({ tabId }) => noteFocusedTab(tabId));
-
-chrome.windows.onFocusChanged.addListener(async (windowId) => {
-  if (windowId === chrome.windows.WINDOW_ID_NONE) return;
-  const [tab] = await chrome.tabs.query({ active: true, windowId });
-  if (tab) noteFocusedTab(tab.id);
-});
-
-chrome.tabs.onUpdated.addListener((tabId, change, tab) => {
+chrome.tabs.onUpdated.addListener((_tabId, change) => {
   if (change.url || change.status === "complete" || "discarded" in change) {
-    if (tab.active) noteFocusedTab(tabId);
     updateBadge();
   }
 });
 
 chrome.tabs.onRemoved.addListener(async (tabId) => {
-  const { pinnedTabId, lastFocusedTabId } = await getTabState();
+  const { pinnedTabId } = await getSession();
   if (pinnedTabId === tabId) {
     await chrome.storage.session.remove("pinnedTabId");
   }
-  if (lastFocusedTabId === tabId) {
-    await chrome.storage.session.remove("lastFocusedTabId");
-  }
+  // A binding to this tab stays, so the next dictation reports it lost.
   updateBadge();
 });
 
@@ -151,73 +135,210 @@ async function sendToFrame(tabId, frameId, message) {
   }
 }
 
-// Asks every frame whether it has the field, and returns the frame to use.
-async function findFieldFrame(tabId, options) {
-  let frames = (await chrome.webNavigation.getAllFrames({ tabId })) ?? [];
+// Asks every frame of `tab` whether it has the field. Resolves to the frames
+// that do, and whether any frame answered (none do before the content script
+// is injected).
+async function probeTab(tab, options) {
+  let frames =
+    (await chrome.webNavigation.getAllFrames({ tabId: tab.id })) ?? [];
   if (frames.length === 0) frames = [{ frameId: 0 }];
-  const probes = await Promise.all(
-    frames.map(async ({ frameId }) => ({
-      frameId,
-      reply: await sendToFrame(tabId, frameId, { type: "probe", options }),
-    })),
+  const replies = await Promise.all(
+    frames.map(({ frameId }) =>
+      sendToFrame(tab.id, frameId, { type: "probe", options }),
+    ),
   );
-  const reachable = probes.filter((p) => p.reply);
-  const found = reachable.filter((p) => p.reply.found);
+  const found = [];
+  replies.forEach((reply, order) => {
+    if (reply?.found) {
+      found.push({
+        tab,
+        frameId: frames[order].frameId,
+        focusedAt: reply.focusedAt,
+        order,
+      });
+    }
+  });
+  return { found, reachable: replies.some(Boolean) };
+}
+
+// The field from `options.fieldMode` in `tabs`: {tab, frameId} or {error}.
+// "focused": the field focused most recently. "selector": the most recently
+// used tab where the selector finds a field, top frame first.
+async function searchTabs(tabs, options, { inject, where }) {
+  const live = tabs.filter((tab) => !tab.discarded);
+  if (live.length === 0) return { error: MEMORY_SAVER_HINT };
+
+  let probes = await Promise.all(live.map((tab) => probeTab(tab, options)));
+  if (inject) {
+    // Tabs that loaded before the content script was registered.
+    const unreachable = live.filter((_, i) => !probes[i].reachable);
+    if (unreachable.length > 0) {
+      await Promise.all(
+        unreachable.map((tab) => injectInto(tab.id).catch(() => {})),
+      );
+      probes = await Promise.all(live.map((tab) => probeTab(tab, options)));
+    }
+  }
+
+  const found = probes.flatMap((p) => p.found);
   if (found.length === 0) {
-    return { frameId: null, reachable: reachable.length > 0 };
+    return {
+      error:
+        options.fieldMode === "focused"
+          ? `No text field was focused in ${where}. Click into the report field once.`
+          : `The field wasn't found in ${where}.`,
+    };
   }
   if (options.fieldMode === "focused") {
-    // The frame whose field was focused most recently.
-    found.sort((a, b) => b.reply.focusedAt - a.reply.focusedAt);
+    found.sort((a, b) => b.focusedAt - a.focusedAt);
+  } else {
+    // `lastAccessed` is Chrome 121+.
+    found.sort(
+      (a, b) =>
+        (b.tab.lastAccessed ?? 0) - (a.tab.lastAccessed ?? 0) ||
+        a.order - b.order,
+    );
   }
-  // Otherwise frames stay in the order Chrome lists them, top frame first.
-  return { frameId: found[0].frameId, reachable: true };
+  return { tab: found[0].tab, frameId: found[0].frameId };
+}
+
+// Whether the bound field is still there.
+async function bindingAlive(binding) {
+  const reply = await sendToFrame(binding.tabId, binding.frameId, {
+    type: "probe",
+    options: { fieldMode: "bound", bindId: binding.bindId },
+  });
+  return !!reply?.found;
+}
+
+// The field to insert into: {tab, frameId, via} or {error, via}. `via` says
+// how it was chosen: "bound", "bound-lost", "pinned" or "search".
+async function findTarget(options, { inject = false } = {}) {
+  const tabs = await matchingTabs();
+  const { pinnedTabId, binding } = await getSession();
+
+  if (binding) {
+    const tab = tabs.find((t) => t.id === binding.tabId);
+    if (tab && !tab.discarded && (await bindingAlive(binding))) {
+      return { tab, frameId: binding.frameId, via: "bound", binding };
+    }
+    if (tab?.discarded) {
+      return { error: MEMORY_SAVER_HINT, via: "bound-lost", binding };
+    }
+    if (config.whenBindingLost !== "auto" || !config.boundSelector) {
+      return {
+        error: `The bound field's window was closed or reloaded. ${REBIND_HINT}`,
+        via: "bound-lost",
+        binding,
+      };
+    }
+    if (tabs.length === 0) {
+      return {
+        error: "No open tab matches the RadBridge URL pattern.",
+        via: "bound-lost",
+        binding,
+      };
+    }
+    const found = await searchTabs(
+      tabs,
+      { ...options, fieldMode: "selector", selector: config.boundSelector },
+      { inject, where: "any open RadOS window" },
+    );
+    return { ...found, via: "bound-lost", binding };
+  }
+
+  if (tabs.length === 0) {
+    return {
+      error: config.urlPattern
+        ? "No open tab matches the RadBridge URL pattern."
+        : "Set the URL pattern in the RadBridge options.",
+      via: "search",
+    };
+  }
+  const pinned = tabs.find((tab) => tab.id === pinnedTabId);
+  const found = await searchTabs(pinned ? [pinned] : tabs, options, {
+    inject,
+    where: pinned ? "the pinned tab" : "any open RadOS window",
+  });
+  return { ...found, via: pinned ? "pinned" : "search" };
 }
 
 // Inserts `text` into the target field. Resolves to {ok, error?}.
 async function insertText(text) {
-  const tab = await resolveTargetTab();
-  if (!tab) {
-    return {
-      ok: false,
-      error: config.urlPattern
-        ? "No open tab matches the RadBridge URL pattern."
-        : "Set the URL pattern in the RadBridge options.",
-    };
-  }
-  if (tab.discarded) return { ok: false, error: MEMORY_SAVER_HINT };
-
   const options = insertOptions(config);
-  let { frameId, reachable } = await findFieldFrame(tab.id, options);
-  if (frameId === null && !reachable) {
-    // The tab loaded before the content script was registered.
-    try {
-      await injectInto(tab.id);
-      ({ frameId } = await findFieldFrame(tab.id, options));
-    } catch {
-      return {
-        ok: false,
-        error: "RadBridge can't reach the target tab. Reload it.",
-      };
-    }
-  }
-  if (frameId === null) {
-    return {
-      ok: false,
-      error:
-        options.fieldMode === "focused"
-          ? "Click into the report field once so RadBridge knows where to insert."
-          : "The configured field wasn't found in the target tab.",
-    };
-  }
-
-  const reply = await sendToFrame(tab.id, frameId, {
+  const target = await findTarget(options, { inject: true });
+  if (target.error) return { ok: false, error: target.error };
+  const insertWith =
+    target.via === "bound"
+      ? { ...options, fieldMode: "bound", bindId: target.binding.bindId }
+      : target.via === "bound-lost"
+        ? { ...options, fieldMode: "selector", selector: config.boundSelector }
+        : options;
+  const reply = await sendToFrame(target.tab.id, target.frameId, {
     type: "insert",
     text,
-    options,
+    options: insertWith,
   });
   return reply ?? { ok: false, error: "The target tab didn't respond." };
 }
+
+// ---------------------------------------------------------------------------
+// Right-click menu: "Bind RadBridge to this field" on text fields of the
+// configured pages, and "Unbind RadBridge" while a field is bound. Unlike the
+// toolbar button, it's there in popup app windows too.
+
+async function setupMenus() {
+  await chrome.contextMenus.removeAll();
+  if (!config.urlPattern) return;
+  const { binding } = await getSession();
+  chrome.contextMenus.create({
+    id: BIND_MENU,
+    title: "Bind RadBridge to this field",
+    contexts: ["editable"],
+    documentUrlPatterns: [config.urlPattern],
+  });
+  chrome.contextMenus.create({
+    id: UNBIND_MENU,
+    title: "Unbind RadBridge",
+    contexts: ["all"],
+    documentUrlPatterns: [config.urlPattern],
+    visible: !!binding,
+  });
+}
+
+async function bind(tabId, frameId) {
+  const bindId = crypto.randomUUID();
+  let reply = await sendToFrame(tabId, frameId, { type: "bind", bindId });
+  if (!reply) {
+    // The tab loaded before the content script was registered. The field
+    // the user right-clicked is still focused, so bind that.
+    await injectInto(tabId).catch(() => {});
+    reply = await sendToFrame(tabId, frameId, { type: "bind", bindId });
+  }
+  if (!reply?.ok) return;
+  await chrome.storage.session.set({ binding: { tabId, frameId, bindId } });
+  await chrome.storage.local.set({ boundSelector: reply.selector });
+  chrome.contextMenus.update(UNBIND_MENU, { visible: true });
+  updateBadge();
+}
+
+async function unbind() {
+  const { binding } = await getSession();
+  await chrome.storage.session.remove("binding");
+  if (binding) {
+    sendToFrame(binding.tabId, binding.frameId, { type: "unbind" });
+  }
+  chrome.contextMenus.update(UNBIND_MENU, { visible: false });
+  updateBadge();
+}
+
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId === BIND_MENU && tab?.id != null) {
+    bind(tab.id, info.frameId ?? 0);
+  } else if (info.menuItemId === UNBIND_MENU) {
+    unbind();
+  }
+});
 
 // ---------------------------------------------------------------------------
 // WebSocket connection to Handy.
@@ -335,18 +456,19 @@ async function updateBadge() {
       `RadBridge: ${lastError || "not connected to Handy"}`,
     ];
   } else {
-    const tab = await resolveTargetTab();
-    if (tab && !tab.discarded) {
+    const target = await findTarget(insertOptions(config));
+    if (target.tab) {
+      const how = target.via === "bound" ? "bound to a field in" : "target";
       [color, text, title] = [
         "#188038",
         "on",
-        `RadBridge: connected, target "${tab.title}"`,
+        `RadBridge: connected, ${how} "${target.tab.title}"`,
       ];
     } else {
       [color, text, title] = [
         "#e37400",
-        "tab",
-        "RadBridge: connected, no target tab",
+        target.via === "bound-lost" ? "bind" : "tab",
+        `RadBridge: connected. ${target.error}`,
       ];
     }
   }
@@ -359,19 +481,23 @@ async function updateBadge() {
 // Messages from the popup, options page and content scripts.
 
 async function status() {
-  const tab = await resolveTargetTab();
-  const { pinnedTabId } = await getTabState();
+  const target = await findTarget(insertOptions(config));
   return {
     connected: authenticated,
     error: lastError,
-    target: tab
-      ? { id: tab.id, title: tab.title, url: tab.url, discarded: tab.discarded }
+    target: target.tab
+      ? { id: target.tab.id, title: target.tab.title, url: target.tab.url }
       : null,
-    pinned: tab != null && tab.id === pinnedTabId,
+    targetError: target.error ?? "",
+    via: target.via,
+    bound: !!target.binding,
+    pinned: target.via === "pinned",
     config: {
       urlPattern: config.urlPattern,
       fieldMode: config.fieldMode,
       selector: config.selector,
+      boundSelector: config.boundSelector,
+      whenBindingLost: config.whenBindingLost,
     },
   };
 }
@@ -436,6 +562,9 @@ async function handleMessage(message, sender) {
       });
       return { ok: true };
     }
+    case "unbind":
+      await unbind();
+      return { ok: true };
     case "test-insert":
       return insertText(TEST_TEXT);
     case "reconnect":
@@ -464,7 +593,8 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
   config = await loadConfig();
   if (changes.urlPattern) {
     await registerContentScript();
-    await chrome.storage.session.remove(["pinnedTabId", "lastFocusedTabId"]);
+    await chrome.storage.session.remove(["pinnedTabId", "binding"]);
+    await setupMenus();
   }
   if (changes.port || changes.token) {
     disconnect();
@@ -482,6 +612,7 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 
 async function start() {
   config = await loadConfig();
+  await setupMenus();
   await chrome.alarms.create(KEEPALIVE_ALARM, { periodInMinutes: 0.5 });
   connect();
   updateBadge();
@@ -491,5 +622,9 @@ chrome.runtime.onInstalled.addListener(async () => {
   config = await loadConfig();
   await registerContentScript();
 });
+
+// For the end-to-end test and the service worker's DevTools console: the
+// right-click menu can't be clicked from a script.
+globalThis.radbridgeDebug = { bind, unbind, findTarget };
 
 start();

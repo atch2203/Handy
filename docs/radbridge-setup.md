@@ -58,9 +58,16 @@ Reload any reporting tabs that were already open.
 
 ## 6. Choose the field
 
-The default is **Last focused field**: open a report and click into the report field once. RadBridge then inserts there, even after you switch to another window.
+**Recommended: bind the field.** Open a report, right-click the report field, and choose **Bind RadBridge to this field**. The field flashes briefly. Dictation then goes to that field, even while the image viewer or another RadOS window is focused. This works in RadOS's popup windows too.
 
-If that doesn't work reliably, open a report, click the RadBridge icon, and click **Pick field**. Then click the report field. RadBridge saves a selector for that field, which you can see and edit in the options.
+The binding ends when the report window closes or reloads, for example when the next study opens. In the RadBridge options, **When the bound field's window closes or reloads** decides what happens next:
+
+- **Stop until I bind a field again** (default): dictation is copied to the clipboard until you right-click the field and bind it again. Most predictable.
+- **Find the same field in any open RadOS window:** RadBridge finds the report field in the new window by itself. This works if the report field looks the same to the browser in every study; test it with a few studies.
+
+To stop, right-click in a RadOS window and choose **Unbind RadBridge**.
+
+**Without binding**, RadBridge uses **Last focused field**: the text field you clicked most recently in any RadOS window. Windows without one, like the viewer, are skipped. A text box in the viewer that you type into would count as the most recent field, so binding is safer.
 
 ## 7. Test it
 

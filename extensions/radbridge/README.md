@@ -36,12 +36,15 @@ Handy refuses the handshake unless `Origin` starts with `chrome-extension://` or
 
 ## How it picks the tab and field
 
-**Tab:** the tab pinned with **Target this tab**, if it's still open. Otherwise the matching tab focused most recently, then the matching tab used most recently. A tab unloaded by Memory Saver is reported as an error and is never reloaded.
+**Bound field.** Right-click a text field in a matching page and choose **Bind RadBridge to this field**. Dictation then goes to that exact field, whichever window is focused, until you choose **Unbind RadBridge** (right-click menu or popup). The menu works in popup app windows, which have no toolbar button. A binding overrides everything below. The menu doesn't appear in `about:blank` or `srcdoc` iframes, whose address doesn't match the URL pattern; use a selector for a field in one of those. It ends when its window closes or reloads, and then the **When the bound field's window closes or reloads** option decides:
 
-**Field**, set in the options:
+- **Stop until I bind a field again** (default): dictation fails, so Handy puts it on the clipboard, until you bind a field again.
+- **Find the same field in any open RadOS window:** binding also saved a selector for the field. RadBridge looks for it in every matching window, as in selector mode below.
 
-- **Last focused field** (default): the last `textarea`, text `input` or `contenteditable` focused in any frame of the tab, open shadow roots included. Click into the report field once after opening it.
-- **CSS selector:** `>>>` steps into a same-origin iframe or an open shadow root, for example `iframe#editor >>> .ql-editor` or `report-editor >>> textarea`. **Pick field** in the popup writes one for you. It prefers `id`, then `name`, `aria-label`, `role`, `placeholder` or `data-*`, then a short structural path.
+**Without a binding**, RadBridge asks every frame of every matching tab whether it has the field, and skips tabs that don't. A same-site viewer popup without text fields never becomes the target. With **Target this tab**, only the pinned tab is asked. A tab unloaded by Memory Saver is reported as an error and is never reloaded. Which field, set in the options:
+
+- **Last focused field** (default): the `textarea`, text `input` or `contenteditable` focused most recently in any matching tab or frame, open shadow roots included. Click into the report field once after opening it. A text box in another window of the same site, once typed into, becomes the most recent one, so prefer a binding or a selector.
+- **CSS selector:** `>>>` steps into a same-origin iframe or an open shadow root, for example `iframe#editor >>> .ql-editor` or `report-editor >>> textarea`. **Pick field** in the popup writes one for you. It prefers `id`, then `name`, `aria-label`, `role`, `placeholder` or `data-*`, then a short structural path. The most recently used tab where it finds a field wins.
 
 **Insert:** with the default **Automatic** method, RadBridge tries these in order. It moves to the next one only if the field's text didn't change, so text is never inserted twice.
 
@@ -52,15 +55,19 @@ Handy refuses the handshake unless `Origin` starts with `chrome-extension://` or
 
 RadBridge never presses Enter, submits a form or clicks anything. In append mode it restores the field's selection and the page's focused element afterwards. It never logs or stores dictated text; the only stored data is the configuration.
 
-## Automated test
+## Automated tests
 
-Checks `content.js` against the test page in headless Chrome. It covers each field type, append and caret modes, separators, selection restore, last-focused tracking and picked selectors.
+Both run in headless Chrome and need Node 22+. Set `CHROME=/path/to/chrome` if it isn't `google-chrome`.
 
 ```bash
-node extensions/radbridge/test/content-test.mjs   # Node 22+; CHROME=/path/to/chrome if needed
+node extensions/radbridge/test/content-test.mjs
+node extensions/radbridge/test/e2e-test.mjs
 ```
 
-It doesn't cover the service worker, the connection to Handy, background tabs or real focus. The manual checklist below covers those.
+- `content-test.mjs` checks `content.js` against the test page: each field type, append and caret modes, separators, selection restore, last-focused tracking and picked selectors.
+- `e2e-test.mjs` loads the extension with a mock of Handy's WebSocket server. It checks the token handshake, dictation while a same-site viewer popup is focused, binding a field, and both "binding lost" options after a reload.
+
+Neither covers real OS focus, Memory Saver, or the right-click menu itself (the test calls the same code the menu does). The manual checklist below covers those.
 
 ## Manual test checklist
 
@@ -86,6 +93,13 @@ In the RadBridge options set the URL pattern to `http://localhost/*` (match patt
 
 - [ ] The test page is a background tab, and another tab in the same window is active. The text arrives.
 - [ ] Another application's window is focused, such as a text editor standing in for the image viewer. The text arrives, and the keyboard focus stays in that other application: type right after dictating to check.
+
+**Windows and binding:**
+
+- [ ] Open the viewer popup with the button on the test page and click into it, after clicking a field on the test page. Dictation reaches the test page.
+- [ ] In the viewer popup, right-click: there's no Bind item, since it has no text field. On the test page, right-click a field and choose **Bind RadBridge to this field**. The field flashes, and dictation goes there even after you click into another field.
+- [ ] Reload the test page. With **Stop until I bind a field again**, dictation fails with "Copied to Clipboard Instead" and a message to bind again. With **Find the same field…**, it reaches the same field.
+- [ ] **Unbind RadBridge** from the right-click menu and from the popup.
 
 **Position:**
 

@@ -21,6 +21,12 @@ export const DEFAULTS = {
   strategy: "auto",
   // Briefly outline the field after inserting.
   flash: true,
+  // A field bound with the right-click menu overrides `fieldMode`. When its
+  // window closes or reloads: "rebind" fails until a field is bound again;
+  // "auto" looks for `boundSelector` in every matching window.
+  whenBindingLost: "rebind",
+  // Selector of the last bound field, written when binding.
+  boundSelector: "",
 };
 
 export const TEST_TEXT = "[RadBridge test]";

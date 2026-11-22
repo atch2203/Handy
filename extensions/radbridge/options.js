@@ -18,6 +18,8 @@ function fill(config) {
   $("separator").value = config.separator;
   $("strategy").value = config.strategy;
   $("flash").checked = config.flash;
+  $("whenBindingLost").value = config.whenBindingLost;
+  $("boundSelector").textContent = config.boundSelector || "none";
 }
 
 function read() {
@@ -31,6 +33,7 @@ function read() {
     separator: $("separator").value,
     strategy: $("strategy").value,
     flash: $("flash").checked,
+    whenBindingLost: $("whenBindingLost").value,
   };
 }
 
@@ -80,6 +83,9 @@ async function refreshStatus() {
 
 // A field picked in the popup while this page is open.
 chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && changes.boundSelector) {
+    $("boundSelector").textContent = changes.boundSelector.newValue || "none";
+  }
   if (area === "local" && changes.selector) {
     $("selector").value = changes.selector.newValue ?? "";
     form.elements.fieldMode.value = "selector";

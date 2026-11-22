@@ -93,6 +93,29 @@
       </fieldset>
 
       <fieldset>
+        <legend>Bound field</legend>
+        <p class="hint">
+          Right-click a text field in a RadOS window and choose
+          <em>Bind RadBridge to this field</em>. Dictation then goes to that
+          field, whichever window you're in, until you choose
+          <em>Unbind RadBridge</em>. A bound field overrides "Which field"
+          above.
+        </p>
+        <p class="hint">Last bound: <code id="boundSelector">none</code></p>
+        <label for="whenBindingLost"
+          >When the bound field's window closes or reloads</label
+        >
+        <select id="whenBindingLost">
+          <option value="rebind">
+            Stop until I bind a field again (dictation goes to the clipboard)
+          </option>
+          <option value="auto">
+            Find the same field in any open RadOS window
+          </option>
+        </select>
+      </fieldset>
+
+      <fieldset>
         <legend>Where to insert</legend>
         <label class="choice"
           ><input type="radio" name="position" value="end" /> Append to the

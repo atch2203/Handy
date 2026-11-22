@@ -127,3 +127,8 @@ customElements.define(
     }
   },
 );
+
+// A same-site popup window without text fields, like an image viewer.
+document.getElementById("open-viewer").addEventListener("click", () => {
+  window.open("viewer.html", "viewer", "popup,width=640,height=420");
+});

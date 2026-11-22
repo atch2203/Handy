@@ -4,7 +4,8 @@
 //   included), for the "last focused field" mode.
 // - Answers the service worker's `probe` (is the field in this frame?) and
 //   `insert` (put text in it) messages.
-// - Runs the "Pick field" picker.
+// - Runs the "Pick field" picker, and binds the field right-clicked with
+//   "Bind RadBridge to this field".
 //
 // Never presses Enter, submits or clicks anything, and never logs or stores
 // dictated text.
@@ -128,7 +129,24 @@
     true,
   );
 
+  // The field bound with the right-click menu: {id, el}. A reload ends it.
+  let bound = null;
+  // The field last right-clicked, for "Bind RadBridge to this field".
+  let contextField = null;
+
+  document.addEventListener(
+    "contextmenu",
+    (event) => {
+      contextField = fieldFor(event.composedPath()[0]);
+    },
+    true,
+  );
+
   function findField(options) {
+    if (options.fieldMode === "bound") {
+      const el = bound?.id === options.bindId ? bound.el : null;
+      return el?.isConnected && isTextField(el) ? el : null;
+    }
     if (options.fieldMode === "selector") {
       return options.selector ? resolveSelector(options.selector) : null;
     }
@@ -531,6 +549,25 @@
         return false;
       case "pick-stop":
         stopPicking();
+        sendResponse(true);
+        return false;
+      case "bind": {
+        // The right-clicked field, or the focused one if this script was
+        // injected after the right-click.
+        const field = contextField?.isConnected
+          ? contextField
+          : fieldFor(deepActiveElement(document));
+        if (!field) {
+          sendResponse({ ok: false });
+          return false;
+        }
+        bound = { id: message.bindId, el: field };
+        flash(field);
+        sendResponse({ ok: true, selector: selectorFor(field) });
+        return false;
+      }
+      case "unbind":
+        bound = null;
         sendResponse(true);
         return false;
       default:
