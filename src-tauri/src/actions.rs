@@ -871,10 +871,15 @@ impl ShortcutAction for TranscribeAction {
                                 }
                             }
 
-                            // The user's hook only changes what gets pasted;
-                            // history above keeps the text as produced.
+                            // Text rules and the user's hook only change what
+                            // gets pasted; history above keeps the text as
+                            // produced, so the user can see what to match.
+                            let ruled = crate::text_rules::apply_from_settings(
+                                &get_settings(&ah),
+                                processed.final_text,
+                            );
                             let Some(final_text) = complete_unless_cancelled(
-                                crate::transcription_hook::apply(&ah, processed.final_text),
+                                crate::transcription_hook::apply(&ah, ruled),
                                 || rm.was_cancelled_since(cancel_generation),
                             )
                             .await

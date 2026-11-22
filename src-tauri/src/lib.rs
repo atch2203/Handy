@@ -29,6 +29,7 @@ mod settings;
 mod shortcut;
 mod signal_handle;
 mod system_languages;
+mod text_rules;
 mod transcription_coordinator;
 mod transcription_hook;
 mod tray;
@@ -720,6 +721,10 @@ pub fn run(cli_args: CliArgs) {
             shortcut::change_extension_bridge_timeout_ms_setting,
             shortcut::regenerate_extension_bridge_token,
             shortcut::get_extension_bridge_status,
+            shortcut::change_text_rules_enabled_setting,
+            shortcut::change_text_rules_capitalize_setting,
+            shortcut::change_text_rules_setting,
+            shortcut::preview_text_rules,
             shortcut::get_available_typing_tools,
             shortcut::change_typing_tool_setting,
             shortcut::change_external_script_path_setting,

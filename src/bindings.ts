@@ -228,6 +228,37 @@ async regenerateExtensionBridgeToken() : Promise<Result<string, string>> {
 async getExtensionBridgeStatus() : Promise<ExtensionBridgeStatus> {
     return await TAURI_INVOKE("get_extension_bridge_status");
 },
+async changeTextRulesEnabledSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_text_rules_enabled_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changeTextRulesCapitalizeSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_text_rules_capitalize_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changeTextRulesSetting(rules: TextRule[]) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_text_rules_setting", { rules }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * What the current text rules make of `text`, for trying them in Settings.
+ * Applies them even while they're turned off.
+ */
+async previewTextRules(text: string) : Promise<string> {
+    return await TAURI_INVOKE("preview_text_rules", { text });
+},
 async getAvailableTypingTools() : Promise<string[]> {
     return await TAURI_INVOKE("get_available_typing_tools");
 },
@@ -1195,7 +1226,19 @@ extension_bridge_token?: SecretString;
 /**
  * How long to wait for the extension to confirm an insert.
  */
-extension_bridge_timeout_ms?: number; filler_word_removal_enabled?: boolean; custom_filler_words?: string[] | null; 
+extension_bridge_timeout_ms?: number; 
+/**
+ * Apply `text_rules` to dictation before pasting.
+ */
+text_rules_enabled?: boolean; 
+/**
+ * Find → replace rules for dictated text (`text_rules`).
+ */
+text_rules?: TextRule[]; 
+/**
+ * Capitalise the first letter after a `.`, `?`, `!` or new line a rule wrote.
+ */
+text_rules_capitalize?: boolean; filler_word_removal_enabled?: boolean; custom_filler_words?: string[] | null; 
 /**
  * Fresh installs default from the OS locale; existing stores are migrated
  * in `apply_settings_migrations`.
@@ -1574,6 +1617,19 @@ export type StreamTextEvent = { committed: string; tentative: string }
  * Semantic kind of "working" phase, used to localize the spinner label.
  */
 export type StreamWorkKind = "transcribing" | "polishing"
+export type TextRule = { 
+/**
+ * Stable id for the settings list.
+ */
+id: string; 
+/**
+ * What the speech model writes, such as `{comma}`.
+ */
+find: string; 
+/**
+ * What to write instead. Empty deletes the match; `"\n"` is a new line.
+ */
+replace: string; enabled?: boolean }
 /**
  * UI appearance mode. `System` follows the OS `prefers-color-scheme`; `Light`
  * and `Dark` force one of the two palettes Handy already ships.

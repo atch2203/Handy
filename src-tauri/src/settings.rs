@@ -566,6 +566,15 @@ pub struct AppSettings {
     /// How long to wait for the extension to confirm an insert.
     #[serde(default = "default_extension_bridge_timeout_ms")]
     pub extension_bridge_timeout_ms: u64,
+    /// Apply `text_rules` to dictation before pasting.
+    #[serde(default)]
+    pub text_rules_enabled: bool,
+    /// Find → replace rules for dictated text (`text_rules`).
+    #[serde(default = "crate::text_rules::default_rules")]
+    pub text_rules: Vec<crate::text_rules::TextRule>,
+    /// Capitalise the first letter after a `.`, `?`, `!` or new line a rule wrote.
+    #[serde(default = "default_true")]
+    pub text_rules_capitalize: bool,
     #[serde(default = "default_filler_word_removal_enabled")]
     pub filler_word_removal_enabled: bool,
     #[serde(default)]
@@ -719,6 +728,10 @@ fn default_paste_delay_after_ms() -> u64 {
     return 500;
     #[cfg(not(target_os = "linux"))]
     return 60;
+}
+
+fn default_true() -> bool {
+    true
 }
 
 fn default_extension_bridge_port() -> u16 {
@@ -1120,6 +1133,9 @@ pub fn get_default_settings() -> AppSettings {
         // Filled in on first load by `ensure_extension_bridge_token`.
         extension_bridge_token: SecretString::default(),
         extension_bridge_timeout_ms: default_extension_bridge_timeout_ms(),
+        text_rules_enabled: false,
+        text_rules: crate::text_rules::default_rules(),
+        text_rules_capitalize: true,
         filler_word_removal_enabled: default_filler_word_removal_enabled(),
         custom_filler_words: None,
         chinese_script: default_chinese_script(),

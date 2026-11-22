@@ -26,6 +26,7 @@ import { LazyStreamClose } from "../LazyStreamClose";
 import { AirPodsMode } from "../AirPodsMode";
 import { FillerWordRemoval } from "../FillerWordRemoval";
 import { VadBackendSelector } from "../VadBackendSelector";
+import { TextRules } from "../TextRules";
 
 export const AdvancedSettings: React.FC = () => {
   const { t } = useTranslation();
@@ -58,6 +59,13 @@ export const AdvancedSettings: React.FC = () => {
             <AutoSubmit descriptionMode="tooltip" grouped={true} />
           </>
         )}
+      </SettingsGroup>
+
+      <SettingsGroup
+        title={t("settings.textRules.title")}
+        description={t("settings.textRules.description")}
+      >
+        <TextRules />
       </SettingsGroup>
 
       <SettingsGroup title={t("settings.advanced.groups.transcription")}>

@@ -642,6 +642,39 @@
         }
       }
     },
+    "textRules": {
+      "title": "Text Rules",
+      "description": "Change what the speech model writes before it's pasted, for example {comma} into a comma. History keeps the text from before these rules, so you can see what to match.",
+      "enabled": {
+        "label": "Apply Text Rules",
+        "description": "Run the rules below on every dictation before it's pasted."
+      },
+      "capitalize": {
+        "label": "Capitalize After a Period or New Line",
+        "description": "Capitalize the first letter after a period, question mark, exclamation mark or new line that a rule wrote."
+      },
+      "rules": {
+        "title": "Rules",
+        "description": "When the model writes the text on the left, write the text on the right instead. Case and spaces inside braces don't matter. A period or comma between two digits, as in 2.5 or 1,200, is never changed.",
+        "empty": "No rules yet.",
+        "find": "Text the model writes",
+        "findPlaceholder": "{comma}",
+        "replace": "Replace with",
+        "ruleOn": "Rule on",
+        "remove": "Remove",
+        "add": "Add Rule"
+      },
+      "replaceWith": {
+        "text": "Text",
+        "newline": "New line",
+        "delete": "Delete"
+      },
+      "tryIt": {
+        "title": "Try It",
+        "description": "Type or paste what the model wrote, as History shows it, to see the result.",
+        "placeholder": "no acute findings {comma} liver is normal {period}"
+      }
+    },
     "postProcessing": {
       "hotkey": {
         "title": "हटकी"

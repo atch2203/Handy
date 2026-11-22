@@ -10,30 +10,29 @@ Install the Handy build that includes RadBridge support. To build it yourself, f
 
 Start Handy, finish its first-run setup, and dictate a test sentence into Notepad to check that it works.
 
-## 2. Install the punctuation hook (optional)
+## 2. Set up the punctuation rules
 
-The hook deletes the periods the speech model adds on its own, keeping decimals such as `2.5 cm`. Then it turns a spoken word into a period.
+Your speech model writes spoken punctuation as tokens, such as `{period}` when you say "period", and adds punctuation of its own. Handy's **Text Rules** clean that up before the text is pasted.
 
-1. Press **Win+R**, type `%APPDATA%\com.pais.handy`, and press Enter. (In portable mode, use the `Data` folder next to `Handy.exe` instead.)
-2. Create a folder named `hooks` there.
-3. Copy [`scripts/hooks/transcription.ps1`](../scripts/hooks/transcription.ps1) into the `hooks` folder.
-4. Check it: open PowerShell in the `hooks` folder and run
+1. In Handy, open **Settings → Advanced → Text Rules**.
+2. Turn on **Apply Text Rules**.
+3. Check the rules. Handy starts with these:
+   - `.` → **Delete**: removes the periods the model adds on its own.
+   - `{period}` → `.`
+   - `{comma}` → `,`
+   - `{newline}` → **New line**
+4. Add a rule for each spoken token you use, with **Add Rule**. Type what the model writes on the left, and choose what to write instead on the right: some **Text**, a **New line**, or **Delete**. To also remove commas the model adds on its own, add `,` → **Delete**.
+5. Paste a sentence as History shows it into **Try It** to check the result.
 
-   ```powershell
-   powershell -NoProfile -ExecutionPolicy Bypass -File .\transcription.ps1 -SelfTest
-   ```
+Good to know:
 
-   It should report that all cases passed.
+- **History** shows what the model wrote before the rules. Use it to find out what to type on the left.
+- Rules don't affect each other: `,` → Delete never deletes the comma that `{comma}` writes, whatever their order.
+- A period or comma with a digit on both sides is never changed, so `2.5 cm` and `1,200 mL` are safe.
+- Word rules match whole words only: a rule for `period` leaves "periodic" alone.
+- **Capitalize After a Period or New Line** capitalises the next word after a period or new line that a rule wrote.
 
-5. **Find out what the speech model writes for your trigger word.** Dictate a sentence with the word you want to use, then open Handy's **History**. History shows the text from before the hook. The script expects `{period}`, which the medical speech model writes when you say "period". If History shows that, you're done. Another model may write `.` instead, which the hook then deletes. In that case pick a distinctive phrase such as "full stop", and set `$TokenPattern` at the top of the script to match what History shows, for example:
-
-   ```powershell
-   $TokenPattern = '\bfull\s+stop\b'
-   ```
-
-   The script capitalises the word after each period it inserts. Set `$CapitalizeAfterPeriod = $false` there to turn that off.
-
-The hook runs on every dictation and adds PowerShell's start-up time to each one, typically a few hundred milliseconds. If the hook fails or takes longer than 30 seconds, Handy uses the original text.
+Advanced users can still run their own script on the text with a [transcription hook](../README.md#transcription-hook); it runs after the rules.
 
 ## 3. Load the extension
 

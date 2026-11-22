@@ -10,6 +10,7 @@ import type {
   ShortcutActivation,
   VadBackend,
   LanguageDetectionMode,
+  TextRule,
 } from "@/bindings";
 import { commands } from "@/bindings";
 import { notify } from "@/stores/noticeStore";
@@ -160,6 +161,11 @@ const settingUpdaters: {
     commands.changeExtensionBridgePortSetting(value as number),
   extension_bridge_timeout_ms: (value) =>
     commands.changeExtensionBridgeTimeoutMsSetting(value as number),
+  text_rules_enabled: (value) =>
+    commands.changeTextRulesEnabledSetting(value as boolean),
+  text_rules_capitalize: (value) =>
+    commands.changeTextRulesCapitalizeSetting(value as boolean),
+  text_rules: (value) => commands.changeTextRulesSetting(value as TextRule[]),
   clipboard_handling: (value) =>
     commands.changeClipboardHandlingSetting(value as string),
   auto_submit: (value) => commands.changeAutoSubmitSetting(value as boolean),

@@ -1051,6 +1051,45 @@ pub fn regenerate_extension_bridge_token(app: AppHandle) -> Result<String, Strin
 
 #[tauri::command]
 #[specta::specta]
+pub fn change_text_rules_enabled_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.text_rules_enabled = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_text_rules_capitalize_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.text_rules_capitalize = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_text_rules_setting(
+    app: AppHandle,
+    rules: Vec<crate::text_rules::TextRule>,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.text_rules = rules;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+/// What the current text rules make of `text`, for trying them in Settings.
+/// Applies them even while they're turned off.
+#[tauri::command]
+#[specta::specta]
+pub fn preview_text_rules(app: AppHandle, text: String) -> String {
+    let settings = settings::get_settings(&app);
+    crate::text_rules::apply(&text, &settings.text_rules, settings.text_rules_capitalize)
+}
+
+#[tauri::command]
+#[specta::specta]
 pub fn get_extension_bridge_status() -> crate::extension_bridge::ExtensionBridgeStatus {
     crate::extension_bridge::BRIDGE.status()
 }
