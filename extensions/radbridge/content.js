@@ -217,8 +217,41 @@
     return true;
   }
 
+  // Text nodes the user can edit: not inside contenteditable="false" parts
+  // such as a placeholder.
+  function editableTextNodes(el) {
+    const doc = el.ownerDocument;
+    const walker = doc.createTreeWalker(el, NodeFilter.SHOW_TEXT, {
+      acceptNode: (node) => {
+        const locked = node.parentElement?.closest('[contenteditable="false"]');
+        return locked && el.contains(locked)
+          ? NodeFilter.FILTER_REJECT
+          : NodeFilter.FILTER_ACCEPT;
+      },
+    });
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    return nodes;
+  }
+
+  // Editors such as Slate keep a zero-width character in empty lines.
+  const ZERO_WIDTH = /[\u200B\uFEFF]/g;
+
+  // The text the user sees before a point in a contenteditable field.
+  function textBefore(el, container, offset) {
+    const before = el.ownerDocument.createRange();
+    before.selectNodeContents(el);
+    before.setEnd(container, offset);
+    let text = "";
+    for (const node of editableTextNodes(el)) {
+      if (!before.intersectsNode(node)) continue;
+      text += node === container ? node.data.slice(0, offset) : node.data;
+    }
+    return text.replace(ZERO_WIDTH, "");
+  }
+
   // Puts the selection where the text should go in a contenteditable field.
-  // Returns the text to insert, separator included.
+  // Returns the text to insert, separator included, and the range.
   function placeCaret(el, text, options) {
     const selection = selectionFor(el);
     let range = null;
@@ -227,23 +260,32 @@
         selection.rangeCount &&
         el.contains(selection.getRangeAt(0).startContainer)
       ) {
-        range = selection.getRangeAt(0);
+        range = selection.getRangeAt(0).cloneRange();
       } else if (lastRange && el.contains(lastRange.startContainer)) {
-        range = lastRange;
+        range = lastRange.cloneRange();
       }
     }
     if (!range) {
+      // The end of the last editable text, so editors map it to their model.
       range = el.ownerDocument.createRange();
-      range.selectNodeContents(el);
-      range.collapse(false);
+      const last = editableTextNodes(el).at(-1);
+      if (last) {
+        const zeroWidthOnly = last.data.replace(ZERO_WIDTH, "") === "";
+        range.setStart(last, zeroWidthOnly ? 0 : last.data.length);
+      } else {
+        range.selectNodeContents(el);
+        range.collapse(false);
+      }
+      range.collapse(true);
     }
     selection.removeAllRanges();
     selection.addRange(range);
-    // Text before the caret, to decide the separator.
-    const beforeRange = el.ownerDocument.createRange();
-    beforeRange.selectNodeContents(el);
-    beforeRange.setEnd(range.startContainer, range.startOffset);
-    return separatorFor(beforeRange.toString(), options) + text;
+    const insert =
+      separatorFor(
+        textBefore(el, range.startContainer, range.startOffset),
+        options,
+      ) + text;
+    return { insert, range };
   }
 
   // 2. contenteditable: execCommand fires native beforeinput/input, so rich
@@ -251,7 +293,7 @@
   function insertByExecCommand(el, text, options) {
     if (!el.isContentEditable) return false;
     el.focus({ preventScroll: true });
-    const insert = placeCaret(el, text, options);
+    const { insert } = placeCaret(el, text, options);
     // Its return value isn't trusted: an editor that cancels beforeinput and
     // applies the text itself makes it return false. The caller checks the
     // field's text instead.
@@ -262,7 +304,9 @@
   // 3. A synthetic paste, which many editors handle.
   function insertByPaste(el, text, options) {
     el.focus({ preventScroll: true });
-    const insert = el.isContentEditable ? placeCaret(el, text, options) : text;
+    const insert = el.isContentEditable
+      ? placeCaret(el, text, options).insert
+      : text;
     const data = new DataTransfer();
     data.setData("text/plain", insert);
     el.dispatchEvent(
@@ -276,18 +320,27 @@
   }
 
   // 4. beforeinput insertText, for editors that build their model from it.
+  //    It says where to insert (targetRanges), as a real one does: Slate
+  //    inserts there instead of at the selection it last saw.
   function insertByBeforeInput(el, text, options) {
     el.focus({ preventScroll: true });
-    const insert = el.isContentEditable ? placeCaret(el, text, options) : text;
-    el.dispatchEvent(
-      new InputEvent("beforeinput", {
-        inputType: "insertText",
-        data: insert,
-        bubbles: true,
-        cancelable: true,
-      }),
-    );
+    let insert = text;
+    const init = {
+      inputType: "insertText",
+      bubbles: true,
+      cancelable: true,
+    };
+    if (el.isContentEditable) {
+      const placed = placeCaret(el, text, options);
+      insert = placed.insert;
+      init.targetRanges = [new StaticRange(placed.range)];
+    }
+    el.dispatchEvent(new InputEvent("beforeinput", { ...init, data: insert }));
     return true;
+  }
+
+  function isSlate(el) {
+    return el.isContentEditable && !!el.closest("[data-slate-editor]");
   }
 
   const STRATEGIES = {
@@ -351,12 +404,19 @@
     const el = findField(options);
     if (!el) return { ok: false, error: "The field wasn't found." };
 
+    // Slate (RadOS's editor) only takes text from beforeinput and paste.
+    // execCommand would change the page but not Slate's model, so the text
+    // would show, then vanish when the user next types.
     const order =
       options.strategy === "auto"
-        ? el.isContentEditable
-          ? ["execCommand", "paste", "beforeinput"]
-          : ["value", "paste", "beforeinput"]
-        : [options.strategy];
+        ? isSlate(el)
+          ? ["beforeinput", "paste"]
+          : el.isContentEditable
+            ? ["execCommand", "paste", "beforeinput"]
+            : ["value", "paste", "beforeinput"]
+        : isSlate(el) && options.strategy === "execCommand"
+          ? ["beforeinput"]
+          : [options.strategy];
     const state = saveState(el);
     const before = textOf(el);
 
@@ -367,7 +427,7 @@
       let applicable = true;
       try {
         // false: the method doesn't apply to this kind of field.
-        applicable = strategy(el, text, options);
+        applicable = await strategy(el, text, options);
       } catch {
         // It may still have changed the field; checked below.
       }

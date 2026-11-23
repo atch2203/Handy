@@ -49,9 +49,11 @@ Handy refuses the handshake unless `Origin` starts with `chrome-extension://` or
 **Insert:** with the default **Automatic** method, RadBridge tries these in order. It moves to the next one only if the field's text didn't change, so text is never inserted twice.
 
 1. `textarea`/`input`: the native `value` setter, then `input` and `change` events. React-controlled fields see the change.
-2. `contenteditable`: focus the field inside the page (this doesn't move OS focus), put the caret at the end or keep it, and `execCommand('insertText')`. Rich text editors get real `beforeinput`/`input` events, and undo works.
+2. `contenteditable`: focus the field inside the page (this doesn't move OS focus), put the caret at the end or keep it, and `execCommand('insertText')`. Editors that watch the page, like ProseMirror, pick the change up, and undo works.
 3. A synthetic `paste` event carrying `text/plain`.
-4. A synthetic `beforeinput` with `inputType: 'insertText'`.
+4. A synthetic `beforeinput` with `inputType: 'insertText'` and target ranges saying where to insert.
+
+**Slate editors** (`[data-slate-editor]`, as in RadOS) get only 4, then 3. Slate keeps its own model and redraws from it, and Chrome fires no `beforeinput` for `execCommand`. So text inserted with `execCommand` shows on the page, but Slate never sees it, and it vanishes the next time the user types. Chosen methods are also checked against the page only, so "the text changed" can't tell these apart; that's why Slate is detected up front. Separators ignore Slate's zero-width characters and `contenteditable="false"` parts such as placeholders.
 
 RadBridge never presses Enter, submits a form or clicks anything. In append mode it restores the field's selection and the page's focused element afterwards. It never logs or stores dictated text; the only stored data is the configuration.
 
@@ -64,7 +66,7 @@ node extensions/radbridge/test/content-test.mjs
 node extensions/radbridge/test/e2e-test.mjs
 ```
 
-- `content-test.mjs` checks `content.js` against the test page: each field type, append and caret modes, separators, selection restore, last-focused tracking and picked selectors.
+- `content-test.mjs` checks `content.js` against the test page: each field type including a real Slate editor (text must reach its model and survive the user typing), append and caret modes, separators, selection restore, last-focused tracking and picked selectors.
 - `e2e-test.mjs` loads the extension with a mock of Handy's WebSocket server. It checks the token handshake, dictation while a same-site viewer popup is focused, binding a field, and both "binding lost" options after a reload.
 
 Neither covers real OS focus, Memory Saver, or the right-click menu itself (the test calls the same code the menu does). The manual checklist below covers those.
@@ -88,6 +90,7 @@ In the RadBridge options set the URL pattern to `http://localhost/*` (match patt
 - [ ] 5 editor in a same-origin iframe
 - [ ] 6 textarea in a srcdoc iframe
 - [ ] 7 textarea in an open shadow root
+- [ ] 8 Slate editor: the "Model" line matches the field, and the text stays when you type in the field afterwards
 
 **Focus.** For each field type above:
 

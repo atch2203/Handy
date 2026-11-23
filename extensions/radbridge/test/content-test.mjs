@@ -262,6 +262,79 @@ await check(
   "2.5 cm lesion 2.5 cm lesion",
 );
 
+// Slate (RadOS's editor): the text must reach Slate's model, or it vanishes
+// when the user next types in the field.
+await evaluate(`new Promise((r) => {
+  const wait = () => (window.slateHarness ? r() : setTimeout(wait, 50));
+  wait();
+})`);
+const slateModel = `new Promise(r => setTimeout(() => r(window.slateHarness.modelText()), 100))`;
+await check(
+  "Slate editor: text reaches the model",
+  "#slate-editor",
+  {},
+  "2.5 cm lesion",
+  slateModel,
+);
+// The user types after the insert: the inserted text must survive.
+await evaluate(`(() => {
+  const el = document.getElementById("slate-editor");
+  el.focus();
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  range.collapse(false);
+  getSelection().removeAllRanges();
+  getSelection().addRange(range);
+})()`);
+await new Promise((r) => setTimeout(r, 150));
+await cmd("Input.insertText", { text: " ok" });
+await new Promise((r) => setTimeout(r, 150));
+const afterTyping = await evaluate(slateModel);
+const afterTypingDom = await evaluate(
+  `document.getElementById("slate-editor").innerText`,
+);
+const survived =
+  afterTyping === "2.5 cm lesion ok" && afterTypingDom === "2.5 cm lesion ok";
+if (!survived) failures++;
+console.log(
+  `${survived ? "PASS" : "FAIL"} Slate editor: inserted text survives the user typing: model=${JSON.stringify(afterTyping)} field=${JSON.stringify(afterTypingDom)}`,
+);
+await check(
+  "Slate editor: second insert appends after typed text",
+  "#slate-editor",
+  {},
+  "2.5 cm lesion ok 2.5 cm lesion",
+  slateModel,
+);
+
+await check(
+  "Slate editor: new line separator",
+  "#slate-editor",
+  { separator: "newline" },
+  "2.5 cm lesion ok 2.5 cm lesion\n2.5 cm lesion",
+  slateModel,
+);
+// Caret mode: caret after "ok" in the first line.
+await evaluate(`(() => {
+  const el = document.getElementById("slate-editor");
+  el.focus();
+  const text = [...el.querySelectorAll("[data-slate-string]")][0].firstChild;
+  const at = text.data.indexOf("ok") + 2;
+  const range = document.createRange();
+  range.setStart(text, at);
+  range.collapse(true);
+  getSelection().removeAllRanges();
+  getSelection().addRange(range);
+})()`);
+await new Promise((r) => setTimeout(r, 150));
+await check(
+  "Slate editor: caret mode",
+  "#slate-editor",
+  { position: "caret", separator: "space" },
+  "2.5 cm lesion ok 2.5 cm lesion 2.5 cm lesion\n2.5 cm lesion",
+  slateModel,
+);
+
 // Not found.
 const missing = await evaluate(
   `send({ type: "insert", text: "x", options: ${JSON.stringify({ ...base, selector: "#nope" })} })`,
